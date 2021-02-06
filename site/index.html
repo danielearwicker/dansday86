@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Dansday '86 Reloaded Reloaded</title>
+        <style>
+            html, body {
+                margin: 0;
+                padding: 0;
+                height: 100%;
+                width: 100%;
+            }
+
+            body {
+                display: flex;
+                flex-direction: row;
+            }
+
+            .panel {
+                flex: 1 1 auto;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .prompt {
+                flex: 0 1 auto;
+                background-color: black;
+                padding: 0.5em;
+                color: white;
+                font-family: Arial, Helvetica, sans-serif;
+                text-align: center;
+                font-size: 1.5em;
+            }
+
+            .map {
+                flex: 1 0 auto;
+            }
+
+            .info {
+                flex: 2 1 auto;
+                border: 0;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="panel">
+            <div class="prompt"></div>
+            <div class="map"></div>
+        </div>        
+        <iframe class="info" src="https://webarchive.nationalarchives.gov.uk/20110911075344/http://www.bbc.co.uk/history/domesday"></iframe>
+        <script src="index.ts"></script>        
+    </body>
+</html>
