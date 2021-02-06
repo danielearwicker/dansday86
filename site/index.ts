@@ -68,11 +68,9 @@ function showCells(map: google.maps.Map, id: string) {
         });
 
         poly.addListener("click", () => {
-            //const iframe = document.querySelector(".info") as HTMLIFrameElement;
-            //iframe.src = cell.url;
-            //console.warn(cell.url);
             const centre = map.getCenter();
-            location.hash = JSON.stringify([map.getZoom(), centre.lng(), centre.lat()]);
+            history.pushState(null, "Map location", "?" + JSON.stringify([map.getZoom(), centre.lng(), centre.lat()]));
+            //location.search = ;
             location.assign(cell.url);
         });
 
@@ -108,10 +106,10 @@ function showZones(map: google.maps.Map) {
     };
 }
 
-function parseHash() {
-    if (location.hash.length > 2) {
+function parseQuery() {
+    if (location.search.length > 2) {
         try {
-            const parsed = JSON.parse(location.hash.substr(1));
+            const parsed = JSON.parse(location.search.substr(1));
             return {
                 zoom: parsed[0],
                 center: {
@@ -133,11 +131,10 @@ const loader = new Loader({
     version: "weekly"
 });
 
-
 loader.load().then(() => {
     const elem = document.querySelector(".map") as HTMLElement;
 
-    const map = new google.maps.Map(elem, parseHash());
+    const map = new google.maps.Map(elem, parseQuery());
 
     let active: { [id: string]: () => void } = {};
 
@@ -167,10 +164,11 @@ loader.load().then(() => {
     map.addListener("center_changed", updateCurrentZone);
     map.addListener("zoom_changed", updateCurrentZone); 
 
-    window.addEventListener("hashchange", () => {
-        console.log("HashChanged");
-        const at = parseHash();
+    function handleNavigate() {
+        const at = parseQuery();
         map.setCenter(at.center);
         map.setZoom(at.zoom);
-    });
+    }
+
+    window.addEventListener("popstate", handleNavigate);    
 });
