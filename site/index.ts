@@ -68,9 +68,12 @@ function showCells(map: google.maps.Map, id: string) {
         });
 
         poly.addListener("click", () => {
-            const iframe = document.querySelector(".info") as HTMLIFrameElement;
-            iframe.src = cell.url;
-            console.warn(cell.url);
+            //const iframe = document.querySelector(".info") as HTMLIFrameElement;
+            //iframe.src = cell.url;
+            //console.warn(cell.url);
+            const centre = map.getCenter();
+            location.hash = JSON.stringify([map.getZoom(), centre.lng(), centre.lat()]);
+            location.assign(cell.url);
         });
 
         poly.setMap(map);
@@ -105,18 +108,36 @@ function showZones(map: google.maps.Map) {
     };
 }
 
+function parseHash() {
+    if (location.hash.length > 2) {
+        try {
+            const parsed = JSON.parse(location.hash.substr(1));
+            return {
+                zoom: parsed[0],
+                center: {
+                    lng: parsed[1],
+                    lat: parsed[2]
+                }
+            };
+        } catch (x) {}
+    }
+
+    return {
+        center: { lat: 54.4, lng: -4 },
+        zoom: 6
+    };
+}
+
 const loader = new Loader({
     apiKey: "AIzaSyAutrz3_IXe0t1wAgcgWxN2eoszvRRI2KU",
     version: "weekly"
 });
 
+
 loader.load().then(() => {
     const elem = document.querySelector(".map") as HTMLElement;
 
-    const map = new google.maps.Map(elem, {
-      center: { lat: 54.4, lng: -4 },
-      zoom: 6
-    });
+    const map = new google.maps.Map(elem, parseHash());
 
     let active: { [id: string]: () => void } = {};
 
@@ -142,8 +163,14 @@ loader.load().then(() => {
         document.querySelector(".prompt")!.innerHTML = msg;
     }
     
-    updateCurrentZone();
-
+    map.addListener("idle", updateCurrentZone);
     map.addListener("center_changed", updateCurrentZone);
     map.addListener("zoom_changed", updateCurrentZone); 
+
+    window.addEventListener("hashchange", () => {
+        console.log("HashChanged");
+        const at = parseHash();
+        map.setCenter(at.center);
+        map.setZoom(at.zoom);
+    });
 });

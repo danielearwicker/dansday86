@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "npx parcel build index.html -d ../docs --public-url /dansday86/"
+    "build": "npx parcel build index.html -d ../docs --public-url /dansday86/",
+    "start": "npx parcel index.html"
   },
   "keywords": [],
   "author": "",
