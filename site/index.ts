@@ -2,12 +2,7 @@ import { Loader } from "@googlemaps/js-api-loader"
 import { decompressFromBase64 } from "lz-string"
 import zonesRaw from "./zones.json";
 
-interface Point {
-    lat: number;
-    lng: number;
-}
-
-type PolyPoints = Point[];
+type PolyPoints = google.maps.LatLngLiteral[];
 
 interface Cell {
     url: string;
@@ -46,8 +41,47 @@ function getCurrentZones(map: google.maps.Map) {
 }
 
 const highlightColour = "#FF5500";
+const selectedColour = "#0055FF";
+let selectedCoords = "";
+
+function getUrlCoords(url: string) {
+    const lastSlash = url.lastIndexOf("/");
+    return lastSlash === -1 ? "" : url.substr(lastSlash + 1);
+}
+
+function createTooltip(map: google.maps.Map) {
+
+    const tooltip = new google.maps.InfoWindow();
+
+    let tooltipTimer: number | undefined = undefined;
+
+    function cancel() {
+        if (tooltipTimer !== undefined) {
+            clearTimeout(tooltipTimer);
+        }
+        tooltipTimer = undefined;
+        tooltip.close();
+    }
+
+    function show(at: PolyPoints, content: string) {
+        cancel();
+
+        tooltipTimer = window.setTimeout(() => {
+            tooltipTimer = undefined;
+            tooltip.setPosition(toBounds(at).getCenter());
+            tooltip.setOptions({ content });
+            tooltip.open(map);
+        }, 1000);
+    }
+
+    return {
+        cancel, show
+    };
+}
 
 function showCells(map: google.maps.Map, id: string) {
+    
+    const tooltip = createTooltip(map);
     
     const zone = zones.filter(z => "" + z.id === id)[0];
 
@@ -58,21 +92,34 @@ function showCells(map: google.maps.Map, id: string) {
     const cells = JSON.parse(decompressed!) as Cell[];
 
     for (const cell of cells) {
+        const cellColour = getUrlCoords(cell.url) === selectedCoords ? selectedColour : highlightColour;
+
         const poly = new google.maps.Polygon({
             paths: cell.bounds,
-            strokeColor: highlightColour,
+            strokeColor: cellColour,
             strokeOpacity: 0.5,
             strokeWeight: 2,
-            fillColor: highlightColour,
-            fillOpacity: 0.2,
+            fillColor: cellColour,
+            fillOpacity: 0.2,            
         });
 
         poly.addListener("click", () => {
             const centre = map.getCenter();
-            history.pushState(null, "Map location", "?" + JSON.stringify([map.getZoom(), centre.lng(), centre.lat()]));
-            //location.search = ;
+            history.pushState(null, "Map location", "?" + JSON.stringify([
+                map.getZoom(), centre.lng(), centre.lat(), getUrlCoords(cell.url)
+            ]));
             location.assign(cell.url);
         });
+
+        poly.addListener("mouseover", () => {
+            poly.setOptions({ strokeOpacity: 1, strokeWeight: 4, strokeColor: selectedColour });            
+            tooltip.show(cell.bounds, "Click me to time travel to 1986!");            
+        });
+
+        poly.addListener("mouseout", () => {
+            poly.setOptions({ strokeOpacity: 0.5, strokeWeight: 2, strokeColor: highlightColour });
+            tooltip.cancel();
+        })
 
         poly.setMap(map);
         polygons.push(poly);
@@ -81,14 +128,18 @@ function showCells(map: google.maps.Map, id: string) {
     return () => {
         for (const poly of polygons) {
             poly.setMap(null);
-        }        
+        }
+
+        tooltip.cancel();   
     };
 }
 
 function showZones(map: google.maps.Map) {
+    const tooltip = createTooltip(map);
+
     const polygons: google.maps.Polygon[] = [];
 
-    for (const zone of zones as any) {
+    for (const zone of zones) {
         const poly = new google.maps.Polygon({
             paths: zone.bounds,
             strokeColor: "transparent",
@@ -97,19 +148,29 @@ function showZones(map: google.maps.Map) {
         });
         poly.setMap(map);
         polygons.push(poly);
+
+        poly.addListener("mouseover", () => {            
+            tooltip.show(zone.bounds, `This zone contains ${zone.cellCount} cells, so keep zooming...`);
+        });
+
+        poly.addListener("mouseout", () => {            
+            tooltip.cancel();
+        })
     }
 
     return () => {
         for (const poly of polygons) {
             poly.setMap(null);
-        }        
+        }
+        tooltip.cancel();
     };
 }
 
 function parseQuery() {
     if (location.search.length > 2) {
         try {
-            const parsed = JSON.parse(location.search.substr(1));
+            const parsed = JSON.parse(decodeURI(location.search.substr(1)));
+            selectedCoords = parsed[3];
             return {
                 zoom: parsed[0],
                 center: {
@@ -117,7 +178,9 @@ function parseQuery() {
                     lat: parsed[2]
                 }
             };
-        } catch (x) {}
+        } catch (x) {
+            console.error("Failed to parse query string: " + location.search);
+        }
     }
 
     return {
